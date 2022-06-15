@@ -1,33 +1,77 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Ropufu.Json;
 
-public sealed class Schema
-    : BasicSchema<Schema>
-{
-    protected override bool IsMatchOverride(ref JsonElement element)
-        => true;
-
-    public static implicit operator Schema(bool trivialValue)
-        => trivialValue ? Schema.TrivialTrue : Schema.TrivialFalse;
-}
-
 /// <summary>
-/// Provides base for non-throwing JSON schemas. Rather than rely on JsonException when
-/// parsing fails, keeps track of errors by means of Verbose functionality.
-/// Properties not marked with [JsonPropertyName] are ignored.
+/// Provides base for non-throwing JSON schemas. Rather than rely on
+/// <see cref="JsonException"/> when parsing fails, keeps track of errors
+/// by means of <see cref="Verbose"/> functionality.
 /// </summary>
+/// <remarks>
+/// Properties not marked with [<see cref="JsonPropertyNameAttribute"/>] are ignored.
+/// </remarks>
 /// <typeparam name="TSchema">Implementation of BasicSchema.</typeparam>
 [NoexceptJsonConverter(typeof(BasicSchemaNoexceptConverterFactory))]
 public abstract partial class BasicSchema<TSchema>
     : Verbose, IResponsiveNoexceptJson
     where TSchema : BasicSchema<TSchema>, new()
 {
-    public static readonly TSchema TrivialTrue = new() { IsTrivialTrue = true };
-    public static readonly TSchema TrivialFalse = new() { IsTrivialFalse = true };
+    private bool _isTrivialTrue = false;
+    private bool _isTrivialFalse = false;
 
-    private static readonly IReadOnlyDictionary<string, string> s_jsonNames = JsonObjectNoexceptConverter<TSchema>.JsonNames;
+    // Schemas immediately owned by this schema through properties.
+    private ImmutableDictionary<string, TSchema> _immediateSchemas;
+    // Indicates if this schema or any of its descendant schemas is a local static reference.
+    private bool _doesOwnLocalStaticReferences;
+    // Indicates if this schema or any of its descendant schemas is a local dynamic reference.
+    private bool _doesOwnLocalDynamicReferences;
+    // Indicates if this schema or any of its descendant schemas is an external reference.
+    private bool _doesOwnExternalReferences;
+    // Indicates if this schema or any of its descendant schemas is an unresolved local reference (either static or dynamic).
+    private bool _doesOwnUnresolvedLocalReferences;
+
+    [MemberNotNull(
+        nameof(BasicSchema<TSchema>._immediateSchemas),
+        nameof(BasicSchema<TSchema>._doesOwnLocalStaticReferences),
+        nameof(BasicSchema<TSchema>._doesOwnLocalDynamicReferences))]
+    private void Initialize()
+    {
+        _immediateSchemas = new(BasicSchema<TSchema>.InitializeImmediateSchemas((TSchema)this));
+        _doesOwnLocalStaticReferences = false;
+        _doesOwnLocalDynamicReferences = false;
+        _doesOwnExternalReferences = false;
+        _doesOwnUnresolvedLocalReferences = false;
+        this.ResolvedReference = null;
+
+        if (this.IsLocalStaticReference)
+            _doesOwnLocalStaticReferences = true;
+
+        if (this.IsLocalDynamicReference)
+            _doesOwnLocalDynamicReferences = true;
+
+        if (this.IsExternalReference)
+            _doesOwnExternalReferences = true;
+
+        // Note: initialization on children has already happened.
+        foreach (KeyValuePair<string, TSchema> x in _immediateSchemas)
+        {
+            _doesOwnLocalStaticReferences |= x.Value._doesOwnLocalStaticReferences;
+            _doesOwnLocalDynamicReferences |= x.Value._doesOwnLocalDynamicReferences;
+            _doesOwnExternalReferences |= x.Value._doesOwnExternalReferences;
+
+            this.Log(x.Value.ErrorMessages, JsonPointer.Parse(x.Key));
+        } // foreach (...)
+
+        if (_doesOwnLocalStaticReferences || _doesOwnLocalDynamicReferences)
+            _doesOwnUnresolvedLocalReferences = true;
+    }
+
+    public BasicSchema()
+    {
+        this.Initialize();
+    }
 
     [JsonInclude]
     [JsonPropertyName("definitions")]
@@ -45,33 +89,183 @@ public abstract partial class BasicSchema<TSchema>
     [JsonPropertyName("$recursiveRef")]
     public JsonElement DeprecatedRecursiveReference { get; private set; }
 
-    public bool IsTrivialTrue { get; private init; } = false;
+    [JsonIgnore]
+    public bool IsTrivial => _isTrivialTrue || _isTrivialFalse;
 
-    public bool IsTrivialFalse { get; private init; } = false;
+    [JsonIgnore]
+    public bool IsTrivialTrue => _isTrivialTrue;
 
-    /// <exception cref="ArgumentNullException">JSON document cannot be null.</exception>
-    /// <exception cref="NotSupportedException">Cannot validate against malformed schema.</exception>
-    public bool IsMatch(JsonDocument json)
+    [JsonIgnore]
+    public bool IsTrivialFalse => _isTrivialFalse;
+
+    [JsonIgnore]
+    [MemberNotNullWhen(returnValue: true, nameof(BasicSchema<TSchema>.StaticReference))]
+    public bool IsLocalStaticReference
+        => this.StaticReference is not null && this.StaticReference.StartsWith('#');
+
+    [JsonIgnore]
+    [MemberNotNullWhen(returnValue: true, nameof(BasicSchema<TSchema>.DynamicReference))]
+    public bool IsLocalDynamicReference
+        => this.DynamicReference is not null && this.DynamicReference.StartsWith('#');
+
+    [JsonIgnore]
+    public bool IsExternalReference
+        => (this.StaticReference is not null && !this.StaticReference.StartsWith('#'))
+        || (this.DynamicReference is not null && !this.DynamicReference.StartsWith('#'));
+
+    protected ImmutableDictionary<string, TSchema> GetImmediateSchemas()
+        => _immediateSchemas;
+
+    /// <summary>
+    /// Schemas owned by this schema or any of its descendants.
+    /// </summary>
+    protected Dictionary<string, TSchema> MapChildSchemas()
     {
-        ArgumentNullException.ThrowIfNull(json);
-        return this.IsMatch(json.RootElement);
+        Dictionary<string, TSchema> schemaMap = new();
+
+        foreach (KeyValuePair<string, TSchema> x in _immediateSchemas)
+            schemaMap.Add(x.Key, x.Value);
+
+        foreach (KeyValuePair<string, TSchema> x in _immediateSchemas)
+            foreach (KeyValuePair<string, TSchema> y in x.Value.MapChildSchemas())
+                schemaMap.Add(x.Key + y.Key, y.Value);
+
+        return schemaMap;
+    }
+
+    /// <summary>
+    /// After a successfull call to TryResolveLocalReferences on the root schema, contains referenced schema.
+    /// </summary>
+    [JsonIgnore]
+    public TSchema? ResolvedReference { get; set; }
+
+    /// <summary>
+    /// Tries to resolve local references (references starting with '#') assuming this schema is the root value of a JSON document. 
+    /// </summary>
+    /// <param name="logger"></param>
+    /// <returns></returns>
+    /// <exception cref="NotSupportedException">Cannot resolve references on malformed schemas.</exception>
+    public bool TryResolveLocalReferences(out JsonLogger logger)
+    {
+        logger = new();
+        TSchema that = (TSchema)this;
+
+        if (this.Has(ErrorLevel.Error))
+            throw new NotSupportedException("Cannot resolve references on malformed schemas.");
+
+        if (!_doesOwnUnresolvedLocalReferences)
+            return true;
+
+        // All desccendant schemas along with this schema, mapped by JSON Pointer.
+        Dictionary<string, TSchema> childrenAndI = that.MapChildSchemas();
+        childrenAndI.Add("", that);
+
+        BasicSchema<TSchema>.MapLocalAnchors(
+            childrenAndI,
+            out Dictionary<string, string> anchorPointers,
+            out List<TSchema> unresolvedSchemas,
+            logger);
+
+        BasicSchema<TSchema>.ResolveLocalReferences(
+            childrenAndI,
+            anchorPointers,
+            unresolvedSchemas,
+            logger);
+
+        BasicSchema<TSchema>.CheckCircularReferences(childrenAndI, logger);
+
+        // Revert to the original state if resolution failed.
+        if (logger.Has(ErrorLevel.Error))
+        {
+            foreach (TSchema x in unresolvedSchemas)
+            {
+                x.ResolvedReference = null;
+                x._doesOwnUnresolvedLocalReferences = true;
+            } // foreach (...)
+
+            return false;
+        } // if (...)
+        else
+        {
+            foreach (TSchema x in unresolvedSchemas)
+                x._doesOwnUnresolvedLocalReferences = false;
+
+            return true;
+        } // else
     }
 
     /// <exception cref="NotSupportedException">Cannot validate against malformed schema.</exception>
+    /// <exception cref="NotSupportedException">Cannot validate against external references.</exception>
+    /// <exception cref="InvalidOperationException">Schema references has not been resolved. Successfull call to TryResolveLocalReferences required.</exception>
     public bool IsMatch(JsonElement element)
         => this.IsMatch(ref element);
 
     /// <exception cref="NotSupportedException">Cannot validate against malformed schema.</exception>
+    /// <exception cref="NotSupportedException">Cannot validate against external references.</exception>
+    /// <exception cref="InvalidOperationException">Schema references have not been resolved. Successfull call to TryResolveLocalReferences required.</exception>
     public bool IsMatch(ref JsonElement element)
     {
         if (this.Has(ErrorLevel.Error))
             throw new NotSupportedException("Cannot validate against malformed schema.");
+
+        if (_doesOwnExternalReferences)
+            throw new NotSupportedException("Cannot validate against external references.");
+
+        if (_doesOwnUnresolvedLocalReferences)
+            throw new InvalidOperationException("Schema references have not been resolved. Successfull call to TryResolveLocalReferences required.");
 
         if (this.IsTrivialTrue)
             return true;
 
         if (this.IsTrivialFalse)
             return false;
+
+        if (this.ResolvedReference is not null && !this.ResolvedReference.IsMatch(ref element))
+            return false;
+
+        if (this.ConditionIfSchema is not null)
+        {
+            bool doesMatchIf = this.ConditionIfSchema.IsMatch(ref element);
+
+            if (doesMatchIf && this.ConditionThenSchema is not null)
+                if (!this.ConditionThenSchema.IsMatch(ref element))
+                    return false;
+
+            if (!doesMatchIf && this.ConditionElseSchema is not null)
+                if (!this.ConditionElseSchema.IsMatch(ref element))
+                    return false;
+        } // if (...)
+
+        if (this.AllOfSchemas is not null)
+        {
+            foreach (TSchema x in this.AllOfSchemas)
+                if (!x.IsMatch(ref element))
+                    return false;
+        } // if (...)
+
+        if (this.AnyOfSchemas is not null)
+        {
+            bool isGood = false;
+
+            foreach (TSchema x in this.AnyOfSchemas)
+                if (x.IsMatch(ref element))
+                    isGood = true;
+
+            if (!isGood)
+                return false;
+        } // if (...)
+
+        if (this.OneOfSchemas is not null)
+        {
+            int countGood = 0;
+
+            foreach (TSchema x in this.OneOfSchemas)
+                if (x.IsMatch(ref element))
+                    ++countGood;
+
+            if (countGood != 1)
+                return false;
+        } // if (...)
 
         if (!this.IsPermissible(ref element))
             return false;
@@ -144,9 +338,7 @@ public abstract partial class BasicSchema<TSchema>
     /// </summary>
     protected abstract bool IsMatchOverride(ref JsonElement element);
 
-    protected virtual void OnDeserializedOverride()
-    {
-    }
+    protected abstract void OnDeserializedOverride();
 
     public void OnDeserialized()
     {
@@ -171,7 +363,7 @@ public abstract partial class BasicSchema<TSchema>
             if (!this.IsMatch(constantValue))
                 this.LogError(
                     $"Constant value \"{constantValue.GetRawText()}\" does not pass schema validation.",
-                    s_jsonNames[nameof(this.ConstantValue)]);
+                    s_jsonPointers[nameof(this.ConstantValue)]);
 
         this.ConstantValue = constantValue;
 
@@ -181,7 +373,7 @@ public abstract partial class BasicSchema<TSchema>
                 if (!this.IsMatch(x))
                     this.LogError(
                         $"Permissible value \"{x.GetRawText()}\" does not pass schema validation.",
-                        s_jsonNames[nameof(this.PermissibleValues)]);
+                        s_jsonPointers[nameof(this.PermissibleValues)]);
 
         this.PermissibleValues = permissibleValues;
 
@@ -197,27 +389,29 @@ public abstract partial class BasicSchema<TSchema>
             if (!this.IsMatch(x))
                 this.LogError(
                     $"Example \"{x.GetRawText()}\" does not pass schema validation.",
-                    s_jsonNames[nameof(this.PermissibleValues)]);
+                    s_jsonPointers[nameof(this.PermissibleValues)]);
 
-        if (this.DeprecatedDefinitions.ValueKind == JsonValueKind.Undefined)
+        if (this.DeprecatedDefinitions.ValueKind != JsonValueKind.Undefined)
             this.LogWarning(
                 "\"definitions\" has been replaced by \"$defs\".",
-                s_jsonNames[nameof(this.DeprecatedDefinitions)]);
+                s_jsonPointers[nameof(this.DeprecatedDefinitions)]);
 
-        if (this.DeprecatedDependencies.ValueKind == JsonValueKind.Undefined)
+        if (this.DeprecatedDependencies.ValueKind != JsonValueKind.Undefined)
             this.LogWarning(
                 "\"dependencies\" has been split and replaced by \"dependentSchemas\" and \"dependentRequired\" in order to serve their differing semantics.",
-                s_jsonNames[nameof(this.DeprecatedDependencies)]);
+                s_jsonPointers[nameof(this.DeprecatedDependencies)]);
 
-        if (this.DeprecatedRecursiveAnchor.ValueKind == JsonValueKind.Undefined)
+        if (this.DeprecatedRecursiveAnchor.ValueKind != JsonValueKind.Undefined)
             this.LogWarning(
                 "\"$recursiveAnchor\" has been replaced by \"$dynamicAnchor\".",
-                s_jsonNames[nameof(this.DeprecatedRecursiveAnchor)]);
+                s_jsonPointers[nameof(this.DeprecatedRecursiveAnchor)]);
 
-        if (this.DeprecatedRecursiveReference.ValueKind == JsonValueKind.Undefined)
+        if (this.DeprecatedRecursiveReference.ValueKind != JsonValueKind.Undefined)
             this.LogWarning(
                 "\"$recursiveRef\" has been replaced by \"$dynamicRef\".",
-                s_jsonNames[nameof(this.DeprecatedRecursiveReference)]);
+                s_jsonPointers[nameof(this.DeprecatedRecursiveReference)]);
+
+        this.Initialize();
 
         this.OnDeserializedOverride();
     }

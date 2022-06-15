@@ -18,11 +18,11 @@ public partial class BasicSchema<TSchema>
 
     [JsonInclude]
     [JsonPropertyName("$ref")]
-    public string? Reference { get; private set; }
+    public string? StaticReference { get; private set; }
 
     [JsonInclude]
     [JsonPropertyName("$anchor")]
-    public string? Anchor { get; private set; }
+    public string? StaticAnchor { get; private set; }
 
     [JsonInclude]
     [JsonPropertyName("$dynamicRef")]
@@ -49,29 +49,44 @@ public partial class BasicSchema<TSchema>
         if (this.IdReference is not null)
         {
             if (!Uri.TryCreate(this.IdReference, UriKind.RelativeOrAbsolute, out _))
-                this.LogError(Literals.ExpectedUriReference, s_jsonNames[nameof(this.IdReference)]);
+                this.LogError(Literals.ExpectedUriReference, s_jsonPointers[nameof(this.IdReference)]);
 
             if (!s_idValidator.IsMatch(this.IdReference))
-                this.LogError("Non-empty fragments not allowed.", s_jsonNames[nameof(this.IdReference)]);
+                this.LogError("Non-empty fragments not allowed.", s_jsonPointers[nameof(this.IdReference)]);
         } // if (...)
 
         if (this.SchemaReference is not null && !Uri.TryCreate(this.SchemaReference, UriKind.Absolute, out _))
-            this.LogError(Literals.ExpectedAbsoluteUri, s_jsonNames[nameof(this.SchemaReference)]);
+            this.LogError(Literals.ExpectedAbsoluteUri, s_jsonPointers[nameof(this.SchemaReference)]);
 
-        if (this.Reference is not null && !Uri.TryCreate(this.Reference, UriKind.RelativeOrAbsolute, out _))
-            this.LogError(Literals.ExpectedAbsoluteUri, s_jsonNames[nameof(this.Reference)]);
+        if (this.StaticReference is not null)
+        {
+            if (!Uri.TryCreate(this.StaticReference, UriKind.RelativeOrAbsolute, out _))
+                this.LogError(Literals.ExpectedAbsoluteUri, s_jsonPointers[nameof(this.StaticReference)]);
 
-        if (this.DynamicReference is not null && !Uri.TryCreate(this.DynamicReference, UriKind.RelativeOrAbsolute, out _))
-            this.LogError(Literals.ExpectedAbsoluteUri, s_jsonNames[nameof(this.DynamicReference)]);
+            if (this.StaticReference.StartsWith('#') && !JsonPointer.TryParse("/" + this.StaticReference, out _))
+                this.LogError(Literals.InvalidJsonReference, s_jsonPointers[nameof(this.StaticReference)]);
+        } // if (...)
 
-        if (this.Anchor is not null && !s_anchorValidator.IsMatch(this.Anchor))
-            this.LogError(Literals.NotRecognized, s_jsonNames[nameof(this.Anchor)]);
+        if (this.DynamicReference is not null)
+        {
+            if (!Uri.TryCreate(this.DynamicReference, UriKind.RelativeOrAbsolute, out _))
+                this.LogError(Literals.ExpectedAbsoluteUri, s_jsonPointers[nameof(this.DynamicReference)]);
+
+            if (this.DynamicReference.StartsWith('#') && !JsonPointer.TryParse("/" + this.DynamicReference, out _))
+                this.LogError(Literals.InvalidJsonReference, s_jsonPointers[nameof(this.DynamicReference)]);
+        } // if (...)
+
+        if (this.StaticReference is not null && this.DynamicReference is not null)
+            this.LogError("Cannot have both static and dynamic reference set simultaneously.");
+
+        if (this.StaticAnchor is not null && !s_anchorValidator.IsMatch(this.StaticAnchor))
+            this.LogError(Literals.NotRecognized, s_jsonPointers[nameof(this.StaticAnchor)]);
 
         if (this.DynamicAnchor is not null && !s_anchorValidator.IsMatch(this.DynamicAnchor))
-            this.LogError(Literals.NotRecognized, s_jsonNames[nameof(this.DynamicAnchor)]);
+            this.LogError(Literals.NotRecognized, s_jsonPointers[nameof(this.DynamicAnchor)]);
 
         foreach (string key in this.Vocabulary.Keys)
             if (!Uri.TryCreate(key, UriKind.RelativeOrAbsolute, out _))
-                this.LogError(Literals.ExpectedUriReference, s_jsonNames[nameof(this.Vocabulary)]);
+                this.LogError(Literals.ExpectedUriReference, s_jsonPointers[nameof(this.Vocabulary)]);
     }
 }

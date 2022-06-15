@@ -29,5 +29,6 @@ public static class Literals
     public const string KeyNotFound = "Key not found.";
     public const string NotRecognized = "Value not recognized.";
     public const string ValidationFailed = "Value failed validation.";
-    public const string Missing = "Missing value encountered.";
+    public const string Missing = "Value expected where none was provided.";
+    public const string InvalidJsonReference = "Valid JSON reference expected.";
 }

@@ -91,9 +91,9 @@ public partial class BasicSchema<TSchema>
         if (this.MultipleOf.HasValue)
         {
             if (!this.MultipleOf.Value.IsFinite())
-                this.LogError(Literals.ExpectedFinite, s_jsonNames[nameof(this.MultipleOf)]);
+                this.LogError(Literals.ExpectedFinite, s_jsonPointers[nameof(this.MultipleOf)]);
             else if (this.MultipleOf.Value <= 0)
-                this.LogError(Literals.ExpectedPositive, s_jsonNames[nameof(this.MultipleOf)]);
+                this.LogError(Literals.ExpectedPositive, s_jsonPointers[nameof(this.MultipleOf)]);
         } // if (...)
 
         this.ValidateLowerBound();
@@ -101,56 +101,56 @@ public partial class BasicSchema<TSchema>
         this.ValidateInterval();
 
         if (this.MaxLength.HasValue && this.MaxLength.Value < 0)
-            this.LogError(Literals.ExpectedNonNegative, s_jsonNames[nameof(this.MaxLength)]);
+            this.LogError(Literals.ExpectedNonNegative, s_jsonPointers[nameof(this.MaxLength)]);
 
         if (this.MinLength < 0)
-            this.LogError(Literals.ExpectedNonNegative, s_jsonNames[nameof(this.MinLength)]);
+            this.LogError(Literals.ExpectedNonNegative, s_jsonPointers[nameof(this.MinLength)]);
 
         if (this.MaxLength.HasValue && this.MaxLength.Value < this.MinLength)
             this.LogError("Maximum length cannot exceed minimum length.");
 
         if (this.MaxItems.HasValue && this.MaxItems.Value < 0)
-            this.LogError(Literals.ExpectedNonNegative, s_jsonNames[nameof(this.MaxItems)]);
+            this.LogError(Literals.ExpectedNonNegative, s_jsonPointers[nameof(this.MaxItems)]);
 
         if (this.MinItems < 0)
-            this.LogError(Literals.ExpectedNonNegative, s_jsonNames[nameof(this.MinItems)]);
+            this.LogError(Literals.ExpectedNonNegative, s_jsonPointers[nameof(this.MinItems)]);
 
         if (this.MaxItems.HasValue && this.MaxItems.Value < this.MinItems)
             this.LogError("Maximum number of items cannot exceed minimum number of items.");
 
         if (this.ArrayMaxContains.HasValue && this.ArrayMaxContains.Value < 0)
-            this.LogError(Literals.ExpectedNonNegative, s_jsonNames[nameof(this.ArrayMaxContains)]);
+            this.LogError(Literals.ExpectedNonNegative, s_jsonPointers[nameof(this.ArrayMaxContains)]);
 
         if (this.ArrayMinContains < 0)
-            this.LogError(Literals.ExpectedNonNegative, s_jsonNames[nameof(this.ArrayMinContains)]);
+            this.LogError(Literals.ExpectedNonNegative, s_jsonPointers[nameof(this.ArrayMinContains)]);
 
         if (this.ArrayMaxContains.HasValue && this.ArrayMaxContains.Value < this.ArrayMinContains)
             this.LogError("Maximum number of contains cannot exceed minimum number of contains.");
 
         if (this.MaxProperties.HasValue && this.MaxProperties.Value < 0)
-            this.LogError(Literals.ExpectedNonNegative, s_jsonNames[nameof(this.MaxProperties)]);
+            this.LogError(Literals.ExpectedNonNegative, s_jsonPointers[nameof(this.MaxProperties)]);
 
         if (this.MinProperties < 0)
-            this.LogError(Literals.ExpectedNonNegative, s_jsonNames[nameof(this.MinProperties)]);
+            this.LogError(Literals.ExpectedNonNegative, s_jsonPointers[nameof(this.MinProperties)]);
 
         if (this.MaxProperties.HasValue && this.MaxProperties.Value < this.MinProperties)
             this.LogError("Maximum number of properties cannot exceed minimum number of properties.");
 
         if (!this.RequiredPropertyNames.IsDistinct())
-            this.LogError(Literals.ExpectedDistinctItems, s_jsonNames[nameof(this.RequiredPropertyNames)]);
+            this.LogError(Literals.ExpectedDistinctItems, s_jsonPointers[nameof(this.RequiredPropertyNames)]);
 
         foreach (KeyValuePair<string, ImmutableList<string>> x in this.PropertyDependentRequiredPropertyNames)
             if (!x.Value.IsDistinct())
-                this.LogError(Literals.ExpectedDistinctItems, s_jsonNames[nameof(this.PropertyDependentRequiredPropertyNames)]);
+                this.LogError(Literals.ExpectedDistinctItems, s_jsonPointers[nameof(this.PropertyDependentRequiredPropertyNames)].Append(x.Key));
     }
 
     private void ValidateLowerBound()
     {
         if (!this.Minimum.IsFiniteOrNull())
-            this.LogError(Literals.ExpectedFinite, s_jsonNames[nameof(this.Minimum)]);
+            this.LogError(Literals.ExpectedFinite, s_jsonPointers[nameof(this.Minimum)]);
 
         if (!this.ExclusiveMinimum.IsFiniteOrNull())
-            this.LogError(Literals.ExpectedFinite, s_jsonNames[nameof(this.ExclusiveMinimum)]);
+            this.LogError(Literals.ExpectedFinite, s_jsonPointers[nameof(this.ExclusiveMinimum)]);
 
         if (!this.Minimum.HasValue)
             return;
@@ -167,10 +167,10 @@ public partial class BasicSchema<TSchema>
     private void ValidateUpperBound()
     {
         if (!this.Maximum.IsFiniteOrNull())
-            this.LogError(Literals.ExpectedFinite, s_jsonNames[nameof(this.Maximum)]);
+            this.LogError(Literals.ExpectedFinite, s_jsonPointers[nameof(this.Maximum)]);
 
         if (!this.ExclusiveMaximum.IsFiniteOrNull())
-            this.LogError(Literals.ExpectedFinite, s_jsonNames[nameof(this.ExclusiveMaximum)]);
+            this.LogError(Literals.ExpectedFinite, s_jsonPointers[nameof(this.ExclusiveMaximum)]);
 
         if (!this.Maximum.HasValue)
             return;

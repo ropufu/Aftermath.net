@@ -137,11 +137,11 @@ public class JsonObjectNoexceptConverter<T>
         ? JsonObjectNoexceptConverter<T>.TryGetNotNull
         : JsonObjectNoexceptConverter<T>.TryGetMaybeNull;
 
-    public static bool TryGetNotNull(Utf8JsonReader rootJson, [MaybeNullWhen(returnValue: false)] out T instance)
-        => JsonObjectNoexceptConverter<T>.TryGetNotNull(ref rootJson, out instance);
+    public static bool TryGetNotNull(Utf8JsonReader json, [MaybeNullWhen(returnValue: false)] out T value)
+        => JsonObjectNoexceptConverter<T>.TryGetNotNull(ref json, out value);
 
-    public static bool TryGetMaybeNull(Utf8JsonReader rootJson, out T? instance)
-        => JsonObjectNoexceptConverter<T>.TryGetMaybeNull(ref rootJson, out instance);
+    public static bool TryGetMaybeNull(Utf8JsonReader json, out T? value)
+        => JsonObjectNoexceptConverter<T>.TryGetMaybeNull(ref json, out value);
 
     private static bool TryGetUnchecked(ref Utf8JsonReader json, out T? value)
     {

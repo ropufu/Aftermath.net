@@ -66,17 +66,27 @@ public partial class BasicSchema<TSchema>
 
     private void InitializeApplicatorBlock()
     {
-        foreach ((string key, _) in this.PatternProperties)
-            if (!key.IsRegex())
-                this.LogError(Literals.ExpectedRegex, s_jsonNames[nameof(this.PatternProperties)]);
+        foreach (string x in this.PatternProperties.Keys)
+            if (!x.IsRegex())
+                this.LogError(Literals.ExpectedRegex, s_jsonPointers[nameof(this.PatternProperties)].Append(x));
 
         if (this.AllOfSchemas is not null && this.AllOfSchemas.Count == 0)
-            this.LogError(Literals.ExpectedNonEmptyArray, s_jsonNames[nameof(this.AllOfSchemas)]);
+            this.LogError(Literals.ExpectedNonEmptyArray, s_jsonPointers[nameof(this.AllOfSchemas)]);
 
         if (this.AnyOfSchemas is not null && this.AnyOfSchemas.Count == 0)
-            this.LogError(Literals.ExpectedNonEmptyArray, s_jsonNames[nameof(this.AnyOfSchemas)]);
+            this.LogError(Literals.ExpectedNonEmptyArray, s_jsonPointers[nameof(this.AnyOfSchemas)]);
 
         if (this.OneOfSchemas is not null && this.OneOfSchemas.Count == 0)
-            this.LogError(Literals.ExpectedNonEmptyArray, s_jsonNames[nameof(this.OneOfSchemas)]);
+            this.LogError(Literals.ExpectedNonEmptyArray, s_jsonPointers[nameof(this.OneOfSchemas)]);
+
+        bool hasIf = this.ConditionIfSchema is not null;
+        bool hasThen = this.ConditionThenSchema is not null;
+        bool hasElse = this.ConditionElseSchema is not null;
+
+        if (!hasIf && (hasThen || hasElse))
+            this.LogWarning("Conditional then/else schema will be ignored when conditional if schema is not present.");
+
+        if (hasIf && !hasThen && !hasElse)
+            this.LogWarning("Conditional if schema will be ignored when conditional then/else schema is not present.");
     }
 }
