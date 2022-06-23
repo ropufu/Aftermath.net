@@ -36,7 +36,7 @@ public class JsonNamedEnumNoexceptConverter<TEnum>
             s_name_lookup.Add(nameAttribute.Name, promoted);
         } // foreach (...)
 
-        NullabilityAwareType stringType = NullabilityAwareType.MakeSimple<string>(NullabilityState.NotNull);
+        NullabilityAwareType<string> stringType = NullabilityAwareType.MakeSimple<string>(NullabilityState.NotNull);
         NullabilityAwareType<List<string?>?> stringListType = NullabilityAwareType.MakeGenericType<List<string?>?>(NullabilityState.NotNull, stringType);
 
         NoexceptJson.TryMakeParser(stringType, out s_singletonParser!);

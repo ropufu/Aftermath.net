@@ -10,7 +10,25 @@ namespace Ropufu.Json.Tests;
 
 public class BasicSchemaTest
 {
-    private static readonly NullabilityInfoContext s_context = new();
+    private static readonly Utf8JsonParser<Schema> s_schemaParser;
+
+    static BasicSchemaTest()
+    {
+        NullabilityAwareType<Schema> schemaType = NullabilityAwareType<Schema>.Unknown();
+
+        if (!NoexceptJson.TryMakeParser(schemaType, out Utf8JsonParser<Schema>? parser))
+            throw new ApplicationException();
+
+        s_schemaParser = parser;
+    }
+
+    private static bool TryDeserialize(string json, [MaybeNullWhen(returnValue: false)] out Schema value)
+    {
+        byte[] utf8Bytes = Encoding.UTF8.GetBytes(json);
+        Utf8JsonReader reader = new(utf8Bytes);
+        reader.Read();
+        return s_schemaParser(ref reader, out value);
+    }
 
     private static bool IsMatch(Schema schema, string testJson)
         => schema.IsMatch(BasicSchemaTest.AsJsonElement(testJson));
@@ -36,28 +54,13 @@ public class BasicSchemaTest
         return nameAttribute.Name;
     }
 
-    private static bool TryDeserialize<T>(string json, [MaybeNullWhen(returnValue: false)] out T value)
-    {
-        value = default;
-
-        NullabilityAwareType<T> typeToConvert = NullabilityAwareType<T>.Unknown(s_context);
-
-        if (!NoexceptJson.TryMakeParser<T>(typeToConvert, out Utf8JsonParser<T>? parser))
-            return false;
-
-        byte[] utf8Bytes = Encoding.UTF8.GetBytes(json);
-        Utf8JsonReader reader = new(utf8Bytes);
-        reader.Read();
-        return parser(ref reader, out value);
-    }
-
     [Fact]
     public void BooleanTrueSchema()
     {
         Assert.True(BasicSchemaTest.TryDeserialize("true", out Schema? schema));
         Assert.True(schema!.IsTrivialTrue);
         Assert.False(schema!.IsTrivialFalse);
-        Assert.Equal(0, schema!.ErrorMessages.Count);
+        Assert.Equal(0, schema!.Messages.Count);
     }
 
     [Fact]
@@ -66,7 +69,7 @@ public class BasicSchemaTest
         Assert.True(BasicSchemaTest.TryDeserialize("false", out Schema? schema));
         Assert.False(schema!.IsTrivialTrue);
         Assert.True(schema!.IsTrivialFalse);
-        Assert.Equal(0, schema!.ErrorMessages.Count);
+        Assert.Equal(0, schema!.Messages.Count);
     }
 
     [Fact]
@@ -75,7 +78,7 @@ public class BasicSchemaTest
         Assert.True(BasicSchemaTest.TryDeserialize("{}", out Schema? schema));
         Assert.False(schema!.IsTrivialTrue);
         Assert.False(schema!.IsTrivialFalse);
-        Assert.Equal(0, schema!.ErrorMessages.Count);
+        Assert.Equal(0, schema!.Messages.Count);
     }
 
     [Fact]
@@ -94,7 +97,7 @@ public class BasicSchemaTest
             string json = $"{{\"type\":\"{name}\"}}";
             Assert.True(BasicSchemaTest.TryDeserialize(json, out Schema? schema));
             Assert.Equal(simple, schema!.Type);
-            Assert.Equal(0, schema!.ErrorMessages.Count);
+            Assert.Equal(0, schema!.Messages.Count);
         } // foreach (...)
     }
 
@@ -116,7 +119,7 @@ public class BasicSchemaTest
             string json = $"{{\"type\":[\"boolean\",\"{name}\"]}}";
             Assert.True(BasicSchemaTest.TryDeserialize(json, out Schema? schema));
             Assert.Equal(compound, schema!.Type);
-            Assert.Equal(0, schema!.ErrorMessages.Count);
+            Assert.Equal(0, schema!.Messages.Count);
         } // foreach (...)
     }
 
@@ -125,7 +128,7 @@ public class BasicSchemaTest
     {
         string json = "{\"patternProperties\":{\"invalid (( pattern\":true}}";
         Assert.True(BasicSchemaTest.TryDeserialize(json, out Schema? schema));
-        Assert.True(schema!.Has(ErrorLevel.Error));
+        Assert.True(schema!.Has(MessageLevel.Error));
     }
 
     [Fact]
@@ -133,7 +136,7 @@ public class BasicSchemaTest
     {
         string json = "{\"enum\":[]}";
         Assert.True(BasicSchemaTest.TryDeserialize(json, out Schema? schema));
-        Assert.Equal(0, schema!.ErrorMessages.Count);
+        Assert.Equal(0, schema!.Messages.Count);
 
         Assert.False(BasicSchemaTest.IsMatch(schema!, "17"));
         Assert.False(BasicSchemaTest.IsMatch(schema!, "2.9"));
@@ -147,7 +150,7 @@ public class BasicSchemaTest
     {
         string json = "{\"minimum\":17}";
         Assert.True(BasicSchemaTest.TryDeserialize(json, out Schema? schema));
-        Assert.Equal(0, schema!.ErrorMessages.Count);
+        Assert.Equal(0, schema!.Messages.Count);
 
         Assert.False(BasicSchemaTest.IsMatch(schema!, "16"));
         Assert.False(BasicSchemaTest.IsMatch(schema!, "16.9"));
@@ -164,7 +167,7 @@ public class BasicSchemaTest
     {
         string json = "{\"exclusiveMaximum\":29}";
         Assert.True(BasicSchemaTest.TryDeserialize(json, out Schema? schema));
-        Assert.Equal(0, schema!.ErrorMessages.Count);
+        Assert.Equal(0, schema!.Messages.Count);
 
         Assert.True(BasicSchemaTest.IsMatch(schema!, "28"));
         Assert.True(BasicSchemaTest.IsMatch(schema!, "28.9"));
@@ -181,7 +184,7 @@ public class BasicSchemaTest
     {
         string json = "{\"$defs\":{\"foo\":false,\"bar\":null}}";
         Assert.True(BasicSchemaTest.TryDeserialize(json, out Schema? schema));
-        Assert.Equal(0, schema!.ErrorMessages.Count);
+        Assert.Equal(0, schema!.Messages.Count);
         Assert.Equal(2, schema!.Definitions.Count);
     }
 
@@ -190,7 +193,7 @@ public class BasicSchemaTest
     {
         string json = "{\"properties\":{\"foo\":false,\"bar\":null}}";
         Assert.True(BasicSchemaTest.TryDeserialize(json, out Schema? schema));
-        Assert.Equal(0, schema!.ErrorMessages.Count);
+        Assert.Equal(0, schema!.Messages.Count);
         Assert.Equal(2, schema!.Properties.Count);
     }
 
@@ -199,10 +202,10 @@ public class BasicSchemaTest
     {
         string json = "{\"$defs\":{\"foo\":false},\"items\":{\"$ref\":\"#/$defs/foo\"}}";
         Assert.True(BasicSchemaTest.TryDeserialize(json, out Schema? schema));
-        Assert.Equal(0, schema!.ErrorMessages.Count);
+        Assert.Equal(0, schema!.Messages.Count);
         Assert.True(schema!.TryResolveLocalReferences(out _));
         Assert.True(object.ReferenceEquals(
-            schema!.ArrayItemsSchema.ResolvedReference,
+            schema!.ArrayItemsSchema!.ResolvedReference,
             schema!.Definitions["foo"]
             ));
     }
@@ -212,10 +215,10 @@ public class BasicSchemaTest
     {
         string json = "{\"$defs\":{\"foo\":{\"$anchor\":\"bar\"}},\"items\":{\"$ref\":\"#bar\"}}";
         Assert.True(BasicSchemaTest.TryDeserialize(json, out Schema? schema));
-        Assert.Equal(0, schema!.ErrorMessages.Count);
+        Assert.Equal(0, schema!.Messages.Count);
         Assert.True(schema!.TryResolveLocalReferences(out _));
         Assert.True(object.ReferenceEquals(
-            schema!.ArrayItemsSchema.ResolvedReference,
+            schema!.ArrayItemsSchema!.ResolvedReference,
             schema!.Definitions["foo"]
             ));
     }
@@ -241,7 +244,7 @@ public class BasicSchemaTest
 }
 ";
         Assert.True(BasicSchemaTest.TryDeserialize(json, out Schema? schema));
-        Assert.Equal(0, schema!.ErrorMessages.Count);
+        Assert.Equal(0, schema!.Messages.Count);
         Assert.False(schema!.TryResolveLocalReferences(out _));
     }
 
@@ -250,7 +253,7 @@ public class BasicSchemaTest
     {
         string json = "{\"$defs\":{\"foo\":{\"$ref\":\"#/$defs/foo\"}}}";
         Assert.True(BasicSchemaTest.TryDeserialize(json, out Schema? schema));
-        Assert.Equal(0, schema!.ErrorMessages.Count);
+        Assert.Equal(0, schema!.Messages.Count);
         Assert.False(schema!.TryResolveLocalReferences(out _));
     }
 
@@ -259,7 +262,7 @@ public class BasicSchemaTest
     {
         string json = "{\"$defs\":{\"foo\":{\"$ref\":\"#/$defs/bar\"},\"bar\":{\"$ref\":\"#/$defs/foo\"}}}";
         Assert.True(BasicSchemaTest.TryDeserialize(json, out Schema? schema));
-        Assert.Equal(0, schema!.ErrorMessages.Count);
+        Assert.Equal(0, schema!.Messages.Count);
         Assert.False(schema!.TryResolveLocalReferences(out _));
     }
 
@@ -268,7 +271,7 @@ public class BasicSchemaTest
     {
         string json = "{\"$defs\":{\"foo\":{\"$ref\":\"#/$defs/bar\"},\"bar\":{\"$ref\":\"#/$defs/baz\"},\"baz\":{\"$ref\":\"#/$defs/foo\"}}}";
         Assert.True(BasicSchemaTest.TryDeserialize(json, out Schema? schema));
-        Assert.Equal(0, schema!.ErrorMessages.Count);
+        Assert.Equal(0, schema!.Messages.Count);
         Assert.False(schema!.TryResolveLocalReferences(out _));
     }
 }

@@ -6,7 +6,7 @@ public partial class BasicSchema<TSchema>
 {
     [JsonInclude]
     [JsonPropertyName("unevaluatedItems")]
-    public TSchema? UnevaluatedItems { get; private set; }
+    public TSchema? UnevaluatedArrayItems { get; private set; }
 
     [JsonInclude]
     [JsonPropertyName("unevaluatedProperties")]

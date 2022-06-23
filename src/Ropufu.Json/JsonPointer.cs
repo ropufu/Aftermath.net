@@ -82,25 +82,27 @@ public class JsonPointer
     }
 
     /// <summary>
-    /// Adds a single reference token to the end of the JSON Pointer.
+    /// Composes two JSON Pointer into one.
     /// </summary>
-    /// <param name="token">Unescaped token.</param>
-    /// <remarks>
-    /// Increses the <see cref="JsonPointer.Count"/> by one.
-    /// </remarks>
-    /// <exception cref="ArgumentNullException"><paramref name="token"/> is null.</exception>
-    public JsonPointer Append(string token)
+    /// <exception cref="ArgumentNullException"><paramref name="a"/> is null.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="b"/> is null.</exception>
+    /// <example>Composition of "/a/b" and "/c" will be "/a/b/c".</example>
+    public static JsonPointer Compose(JsonPointer a, JsonPointer b)
     {
-        ArgumentNullException.ThrowIfNull(token);
+        ArgumentNullException.ThrowIfNull(a);
+        ArgumentNullException.ThrowIfNull(b);
 
-        int n = _referenceTokens.Length;
-        JsonPointer result = new(n + 1);
+        int m = a._referenceTokens.Length;
+        int n = b._referenceTokens.Length;
+        JsonPointer result = new(m + n);
 
-        Array.Copy(_referenceTokens, result._referenceTokens, n);
+        Array.Copy(a._referenceTokens, 0, result._referenceTokens, 0, m);
+        Array.Copy(b._referenceTokens, 0, result._referenceTokens, m, n);
 
-        result._referenceTokens[n] = JsonPointer.EscapeUnchecked(token);
         return result;
     }
+    public static JsonPointer operator +(JsonPointer a, JsonPointer b)
+        => JsonPointer.Compose(a, b);
 
     public int Length
         => _referenceTokens.Length;

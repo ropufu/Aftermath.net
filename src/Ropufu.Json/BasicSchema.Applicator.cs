@@ -10,7 +10,7 @@ public partial class BasicSchema<TSchema>
 
     [JsonInclude]
     [JsonPropertyName("items")]
-    public TSchema ArrayItemsSchema { get; private set; } = BasicSchema<TSchema>.TrivialTrue;
+    public TSchema? ArrayItemsSchema { get; private set; }
 
     [JsonInclude]
     [JsonPropertyName("contains")]
@@ -68,25 +68,29 @@ public partial class BasicSchema<TSchema>
     {
         foreach (string x in this.PatternProperties.Keys)
             if (!x.IsRegex())
-                this.LogError(Literals.ExpectedRegex, s_jsonPointers[nameof(this.PatternProperties)].Append(x));
+                this.Log(Literals.ExpectedRegex, MessageLevel.Error, s_jsonPointers[nameof(this.PatternProperties)] + new JsonPointer(x));
 
         if (this.AllOfSchemas is not null && this.AllOfSchemas.Count == 0)
-            this.LogError(Literals.ExpectedNonEmptyArray, s_jsonPointers[nameof(this.AllOfSchemas)]);
+            this.Log(Literals.ExpectedNonEmptyArray, MessageLevel.Error, s_jsonPointers[nameof(this.AllOfSchemas)]);
 
         if (this.AnyOfSchemas is not null && this.AnyOfSchemas.Count == 0)
-            this.LogError(Literals.ExpectedNonEmptyArray, s_jsonPointers[nameof(this.AnyOfSchemas)]);
+            this.Log(Literals.ExpectedNonEmptyArray, MessageLevel.Error, s_jsonPointers[nameof(this.AnyOfSchemas)]);
 
         if (this.OneOfSchemas is not null && this.OneOfSchemas.Count == 0)
-            this.LogError(Literals.ExpectedNonEmptyArray, s_jsonPointers[nameof(this.OneOfSchemas)]);
+            this.Log(Literals.ExpectedNonEmptyArray, MessageLevel.Error, s_jsonPointers[nameof(this.OneOfSchemas)]);
 
         bool hasIf = this.ConditionIfSchema is not null;
         bool hasThen = this.ConditionThenSchema is not null;
         bool hasElse = this.ConditionElseSchema is not null;
 
         if (!hasIf && (hasThen || hasElse))
-            this.LogWarning("Conditional then/else schema will be ignored when conditional if schema is not present.");
+            this.Log(
+                "\"Conditional then/else\" schema will be ignored: \"conditional if\" schema is not present.",
+                MessageLevel.Warning);
 
         if (hasIf && !hasThen && !hasElse)
-            this.LogWarning("Conditional if schema will be ignored when conditional then/else schema is not present.");
+            this.Log(
+                "\"Conditional if\" schema will be ignored: \"conditional then/else\" schema is not present.",
+                MessageLevel.Warning);
     }
 }

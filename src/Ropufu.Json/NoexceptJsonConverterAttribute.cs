@@ -31,9 +31,11 @@ public sealed class NoexceptJsonConverterAttribute : Attribute
             throw new ArgumentException("Converter should inherit from NoexceptJsonConverter`[T] or NoexceptJsonConverterFactory.", nameof(converterType));
     }
 
-    public NoexceptJsonConverterBase Converter => _converter;
+    public NoexceptJsonConverterBase Converter
+        => _converter;
 
-    public bool CanConvert(Type typeToConvert) => _converter.CanConvert(typeToConvert);
+    public bool CanConvert(Type typeToConvert)
+        => _converter.CanConvert(typeToConvert);
 
     public Delegate MakeUtf8JsonParser(NullabilityAwareType typeToConvert)
         => _converter.MakeUtf8JsonParser(typeToConvert);

@@ -9,9 +9,10 @@ public partial class BasicSchema<TSchema>
     public static readonly TSchema TrivialFalse;
 
     /// <summary>
-    /// Maps <see cref="BasicSchema{}"/>'s property names to their JSON Pointer equivalents.
+    /// Maps property names to their JSON Pointer equivalents.
     /// </summary>
-    protected static readonly IReadOnlyDictionary<string, JsonPointer> s_jsonPointers;
+    protected static readonly IReadOnlyDictionary<string, JsonPointer> s_jsonPointers
+        = JsonObjectNoexceptConverter<TSchema>.MakeJsonPointers();
 
     private static readonly List<PropertyGetter<TSchema?>> s_schemaGetters = new();
     private static readonly List<PropertyGetter<IEnumerable<TSchema?>?>> s_collectinGetters = new();
@@ -30,20 +31,8 @@ public partial class BasicSchema<TSchema>
         }
     }
 
-    private static ImmutableDictionary<string, JsonPointer> MakeJsonPointers()
-    {
-        Dictionary<string, JsonPointer> pointerMap = new();
-
-        foreach (KeyValuePair<string, string> x in JsonObjectNoexceptConverter<TSchema>.JsonNames)
-            pointerMap.Add(x.Key, new(x.Value));
-
-        return new(pointerMap);
-    }
-
     static BasicSchema()
     {
-        s_jsonPointers = BasicSchema<TSchema>.MakeJsonPointers();
-
         Type schemaType = typeof(TSchema);
         Type enumerableType = typeof(IEnumerable<TSchema?>);
         Type dictionaryType = typeof(IReadOnlyDictionary<string, TSchema?>);
@@ -112,7 +101,7 @@ public partial class BasicSchema<TSchema>
                 if (schema is null)
                     continue;
 
-                JsonPointer address = x.Address.Append(index.ToString());
+                JsonPointer address = x.Address + new JsonPointer(index.ToString());
                 schemaMap.Add(address.ToString(), schema);
                 ++index;
             } // foreach (...)
@@ -130,7 +119,7 @@ public partial class BasicSchema<TSchema>
                 if (namedSchema.Value is null)
                     continue;
 
-                JsonPointer address = x.Address.Append(namedSchema.Key);
+                JsonPointer address = x.Address + new JsonPointer(namedSchema.Key);
                 schemaMap.Add(address.ToString(), namedSchema.Value);
             } // foreach (...)
         } // foreach (...)
@@ -148,7 +137,9 @@ public partial class BasicSchema<TSchema>
             {
                 if (!trace.Add(current))
                 {
-                    logger.LogError($"Circular JSON reference originating at \"#{x.Key}\" encountered.");
+                    logger.Log(
+                        $"Circular JSON reference originating at \"#{x.Key}\" encountered.",
+                        MessageLevel.Error);
                     break;
                 } // if (...)
 
@@ -172,11 +163,17 @@ public partial class BasicSchema<TSchema>
 
             if (child.StaticAnchor is not null)
                 if (!anchorPointers.TryAdd("#" + child.StaticAnchor, x.Key))
-                    logger.LogError($"Anchor \"#{child.StaticAnchor}\" cannot be redefined.", JsonPointer.Parse(x.Key));
+                    logger.Log(
+                        $"Anchor \"#{child.StaticAnchor}\" cannot be redefined.",
+                        MessageLevel.Error,
+                        JsonPointer.Parse(x.Key));
 
             if (child.DynamicAnchor is not null)
                 if (!anchorPointers.TryAdd("#" + child.DynamicAnchor, x.Key))
-                    logger.LogError($"Anchor \"#{child.DynamicAnchor}\" cannot be redefined.", JsonPointer.Parse(x.Key));
+                    logger.Log(
+                        $"Anchor \"#{child.DynamicAnchor}\" cannot be redefined.",
+                        MessageLevel.Error,
+                        JsonPointer.Parse(x.Key));
 
             if (child.IsLocalStaticReference || child.IsLocalDynamicReference)
                 unresolvedSchemas.Add(child);
@@ -206,7 +203,9 @@ public partial class BasicSchema<TSchema>
             } // foreach (...)
 
             if (x.ResolvedReference is null)
-                logger.LogError($"Reference \"#{x.StaticReference!}\" could not be resolved.");
+                logger.Log(
+                    $"Reference \"#{x.StaticReference!}\" could not be resolved.",
+                    MessageLevel.Error);
         } // foreach (...)
     }
 }

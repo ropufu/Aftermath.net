@@ -132,6 +132,16 @@ public class JsonObjectNoexceptConverter<T>
 
     public static IReadOnlyDictionary<string, string> JsonNames => s_names;
 
+    public static ImmutableDictionary<string, JsonPointer> MakeJsonPointers()
+    {
+        Dictionary<string, JsonPointer> pointerMap = new();
+
+        foreach (KeyValuePair<string, string> x in s_names)
+            pointerMap.Add(x.Key, new(x.Value));
+
+        return new(pointerMap);
+    }
+
     public override Utf8JsonParser<T> MakeParser(NullabilityAwareType<T> typeToConvert)
         => typeToConvert.IsNotNull
         ? JsonObjectNoexceptConverter<T>.TryGetNotNull

@@ -1,7 +1,6 @@
 ﻿namespace Ropufu.Json;
 
-public sealed class JsonLogger
-    : Logger<JsonPointer>
+public class VerboseJson : Verbose<JsonPointer>
 {
     protected override JsonPointer Compose(JsonPointer a, JsonPointer b)
         => a + b;

@@ -123,5 +123,6 @@ public sealed class NullabilityStateTree : IEquatable<NullabilityStateTree>
     public static bool operator !=(NullabilityStateTree x, NullabilityStateTree y)
         => !x.Equals(y);
 
-    public override int GetHashCode() => _hash;
+    public override int GetHashCode()
+        => _hash;
 }

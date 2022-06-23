@@ -37,9 +37,9 @@ public static partial class NoexceptJson
         NoexceptJson.CacheSimpleParser<Regex>(NoexceptJson.TryGetNotNullRegex, NoexceptJson.TryGetNullableRegex);
     }
 
-    private static void AddParsers<T>(NullabilityAwareType valueType, Utf8JsonParser<T> valueParser)
+    private static void AddParsers<T>(NullabilityAwareType<T> valueType, Utf8JsonParser<T> valueParser)
     {
-        NullabilityAwareType stringType = NullabilityAwareType.MakeSimple<string>(NullabilityState.NotNull);
+        NullabilityAwareType<string> stringType = NullabilityAwareType.MakeSimple<string>(NullabilityState.NotNull);
 
         ListNoexceptConverter<T> listConverter = new(valueParser!);
         ArrayNoexceptConverter<T> arrayConverter = new(valueParser!);
@@ -63,15 +63,15 @@ public static partial class NoexceptJson
     private static void CacheSimpleParser<T>(Utf8JsonParser<T> notNullParser)
         where T : struct
     {
-        NullabilityAwareType type = NullabilityAwareType.MakeSimple<T>();
+        NullabilityAwareType<T> type = NullabilityAwareType.MakeSimple<T>();
         NoexceptJson.AddParsers(type, notNullParser);
     }
 
     private static void CacheSimpleParser<T>(Utf8JsonParser<T> notNullParser, Utf8JsonParser<T?> nullablePraser)
         where T : struct
     {
-        NullabilityAwareType notNullType = NullabilityAwareType.MakeSimple<T>();
-        NullabilityAwareType nullableType = NullabilityAwareType.MakeNullable<T>();
+        NullabilityAwareType<T> notNullType = NullabilityAwareType.MakeSimple<T>();
+        NullabilityAwareType<T?> nullableType = NullabilityAwareType.MakeNullable<T>();
         NoexceptJson.AddParsers(notNullType, notNullParser);
         NoexceptJson.AddParsers(nullableType, nullablePraser);
     }
@@ -81,14 +81,14 @@ public static partial class NoexceptJson
     {
         foreach (NullabilityState valueState in Enum.GetValues<NullabilityState>())
         {
-            NullabilityAwareType valueType = NullabilityAwareType.MakeSimple<T>(valueState);
+            NullabilityAwareType<T> valueType = NullabilityAwareType.MakeSimple<T>(valueState);
             Utf8JsonParser<T> valueParser = valueType.IsNotNull ? notNullParser : fallbackParser;
             NoexceptJson.AddParsers(valueType, valueParser);
         } // foreach (...)
     }
 
     /// <exception cref="ArgumentException">Nullability-aware type inconsistent with T.</exception>
-    public static bool TryRegisterParser<T>(NullabilityAwareType typeToParse, Utf8JsonParser<T> parser)
+    public static bool TryRegisterParser<T>(NullabilityAwareType<T> typeToParse, Utf8JsonParser<T> parser)
     {
         ArgumentNullException.ThrowIfNull(typeToParse);
         ArgumentNullException.ThrowIfNull(parser);
@@ -102,7 +102,7 @@ public static partial class NoexceptJson
     /// <exception cref="ArgumentNullException">Type cannot be null.</exception>
     /// <exception cref="ArgumentException">Type cannot be a generic definition or a generic parameter.</exception>
     /// <exception cref="NotSupportedException">Custom noexcept JSON converter malformed.</exception>
-    public static bool TryMakeParser<T>(NullabilityAwareType typeToParse, [MaybeNullWhen(returnValue: false)] out Utf8JsonParser<T> parser)
+    public static bool TryMakeParser<T>(NullabilityAwareType<T> typeToParse, [MaybeNullWhen(returnValue: false)] out Utf8JsonParser<T> parser)
     {
         ArgumentNullException.ThrowIfNull(typeToParse);
 

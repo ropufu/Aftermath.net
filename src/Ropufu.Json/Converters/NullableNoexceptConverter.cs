@@ -53,7 +53,7 @@ public class NullableNoexceptConverter<T>
             return _valueParser;
 
         // Extract T from Nullable<T>.
-        NullabilityAwareType valueType = typeToConvert.GetGenericArguments()[0];
+        NullabilityAwareType<T> valueType = typeToConvert.GetGenericArguments()[0].Promote<T>();
 
         if (!NoexceptJson.TryMakeParser(valueType, out Utf8JsonParser<T>? valueParser))
             throw new NotSupportedException("Converter for T in Nullable`[T] not found.");

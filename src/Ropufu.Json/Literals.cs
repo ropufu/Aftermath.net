@@ -1,6 +1,6 @@
 ﻿namespace Ropufu.Json;
 
-public static class Literals
+internal static class Literals
 {
     public const string ExpectedClosedNonAbstractType = "Non-abstract closed type expected.";
     public const string ExpectedDefaultConstructibleType = "Type with default constructor expected.";

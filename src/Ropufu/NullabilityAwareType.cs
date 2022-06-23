@@ -10,7 +10,7 @@ namespace Ropufu;
 public sealed class NullabilityAwareType<T>
     : NullabilityAwareType, IEquatable<NullabilityAwareType<T>>
 {
-    private class NullabilityTreeExtractor
+    private static class NullabilityTreeExtractor
     {
         private static readonly T? s_value = default;
         private static readonly FieldInfo s_info = typeof(NullabilityTreeExtractor).GetField(nameof(s_value), BindingFlags.Static | BindingFlags.NonPublic)!;

@@ -41,7 +41,8 @@ public sealed class ImmutableList<T>
         _values.AddRange(collection);
     }
 
-    public static ImmutableList<T> Singleton(T value) => new(value, null);
+    public static ImmutableList<T> Singleton(T value)
+        => new(value, null);
 
     /// <summary>
     /// Creates a mutable copy of this collection.
@@ -56,13 +57,18 @@ public sealed class ImmutableList<T>
     /// <summary>
     /// Represents this collection as <see cref="ReadOnlyCollection"/>.
     /// </summary>
-    public ReadOnlyCollection<T> ToReadOnly() => _values.AsReadOnly();
+    public ReadOnlyCollection<T> ToReadOnly()
+        => _values.AsReadOnly();
 
-    public IEnumerator<T> GetEnumerator() => _values.GetEnumerator();
+    public IEnumerator<T> GetEnumerator()
+        => _values.GetEnumerator();
 
-    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator()
+        => this.GetEnumerator();
 
-    public int Count => _values.Count;
+    public int Count
+        => _values.Count;
 
-    public T this[int index] => _values[index];
+    public T this[int index]
+        => _values[index];
 }

@@ -44,12 +44,14 @@ public sealed class CodeBuilder
     {
     }
 
-    public CodeBuilder(int capacity) => _lines = new(capacity: capacity);
+    public CodeBuilder(int capacity)
+        => _lines = new(capacity: capacity);
 
     /// <summary>
     /// All lines within a code block will have extra indentation.
     /// </summary>
-    public IDisposable NewCodeBlock() => new BuilderBlock(this);
+    public IDisposable NewCodeBlock()
+        => new BuilderBlock(this);
 
     /// <summary>
     /// Adds an empty line to the collection.
@@ -105,8 +107,8 @@ public sealed class CodeBuilder
     /// <summary>
     /// Joins all non-empty pieces of code separated by an extra line break.
     /// </summary>
-    public CodeBuilder AppendJoin(params CodeBuilder[] values) =>
-        this.AppendJoin(values as IEnumerable<CodeBuilder>);
+    public CodeBuilder AppendJoin(params CodeBuilder[] values)
+        => this.AppendJoin(values as IEnumerable<CodeBuilder>);
 
     /// <summary>
     /// Joins all non-empty pieces of code separated by an extra line break.
@@ -135,7 +137,8 @@ public sealed class CodeBuilder
         return this;
     }
 
-    public override string ToString() => this.ToString(new());
+    public override string ToString()
+        => this.ToString(new());
 
     public string ToString(CodeBuilderFormat format)
     {

@@ -49,44 +49,47 @@ public partial class BasicSchema<TSchema>
         if (this.IdReference is not null)
         {
             if (!Uri.TryCreate(this.IdReference, UriKind.RelativeOrAbsolute, out _))
-                this.LogError(Literals.ExpectedUriReference, s_jsonPointers[nameof(this.IdReference)]);
+                this.Log(Literals.ExpectedUriReference, MessageLevel.Error, s_jsonPointers[nameof(this.IdReference)]);
 
             if (!s_idValidator.IsMatch(this.IdReference))
-                this.LogError("Non-empty fragments not allowed.", s_jsonPointers[nameof(this.IdReference)]);
+                this.Log("Non-empty fragments not allowed.", MessageLevel.Error, s_jsonPointers[nameof(this.IdReference)]);
         } // if (...)
 
-        if (this.SchemaReference is not null && !Uri.TryCreate(this.SchemaReference, UriKind.Absolute, out _))
-            this.LogError(Literals.ExpectedAbsoluteUri, s_jsonPointers[nameof(this.SchemaReference)]);
+        // Bending rules: allow UriKind.RelativeOrAbsolute rather than UriKind.Absolute schema references.
+        if (this.SchemaReference is not null && !Uri.TryCreate(this.SchemaReference, UriKind.RelativeOrAbsolute, out _))
+            this.Log(Literals.ExpectedUriReference, MessageLevel.Error, s_jsonPointers[nameof(this.SchemaReference)]);
 
         if (this.StaticReference is not null)
         {
             if (!Uri.TryCreate(this.StaticReference, UriKind.RelativeOrAbsolute, out _))
-                this.LogError(Literals.ExpectedAbsoluteUri, s_jsonPointers[nameof(this.StaticReference)]);
+                this.Log(Literals.ExpectedUriReference, MessageLevel.Error, s_jsonPointers[nameof(this.StaticReference)]);
 
             if (this.StaticReference.StartsWith('#') && !JsonPointer.TryParse("/" + this.StaticReference, out _))
-                this.LogError(Literals.InvalidJsonReference, s_jsonPointers[nameof(this.StaticReference)]);
+                this.Log(Literals.InvalidJsonReference, MessageLevel.Error, s_jsonPointers[nameof(this.StaticReference)]);
         } // if (...)
 
         if (this.DynamicReference is not null)
         {
             if (!Uri.TryCreate(this.DynamicReference, UriKind.RelativeOrAbsolute, out _))
-                this.LogError(Literals.ExpectedAbsoluteUri, s_jsonPointers[nameof(this.DynamicReference)]);
+                this.Log(Literals.ExpectedUriReference, MessageLevel.Error, s_jsonPointers[nameof(this.DynamicReference)]);
 
             if (this.DynamicReference.StartsWith('#') && !JsonPointer.TryParse("/" + this.DynamicReference, out _))
-                this.LogError(Literals.InvalidJsonReference, s_jsonPointers[nameof(this.DynamicReference)]);
+                this.Log(Literals.InvalidJsonReference, MessageLevel.Error, s_jsonPointers[nameof(this.DynamicReference)]);
         } // if (...)
 
         if (this.StaticReference is not null && this.DynamicReference is not null)
-            this.LogError("Cannot have both static and dynamic reference set simultaneously.");
+            this.Log(
+                "Cannot have both static and dynamic reference set simultaneously.",
+                MessageLevel.Error);
 
         if (this.StaticAnchor is not null && !s_anchorValidator.IsMatch(this.StaticAnchor))
-            this.LogError(Literals.NotRecognized, s_jsonPointers[nameof(this.StaticAnchor)]);
+            this.Log(Literals.NotRecognized, MessageLevel.Error, s_jsonPointers[nameof(this.StaticAnchor)]);
 
         if (this.DynamicAnchor is not null && !s_anchorValidator.IsMatch(this.DynamicAnchor))
-            this.LogError(Literals.NotRecognized, s_jsonPointers[nameof(this.DynamicAnchor)]);
+            this.Log(Literals.NotRecognized, MessageLevel.Error, s_jsonPointers[nameof(this.DynamicAnchor)]);
 
         foreach (string key in this.Vocabulary.Keys)
             if (!Uri.TryCreate(key, UriKind.RelativeOrAbsolute, out _))
-                this.LogError(Literals.ExpectedUriReference, s_jsonPointers[nameof(this.Vocabulary)]);
+                this.Log(Literals.ExpectedUriReference, MessageLevel.Error, s_jsonPointers[nameof(this.Vocabulary)]);
     }
 }

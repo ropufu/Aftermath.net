@@ -28,7 +28,8 @@ public enum StringSnakeOptions
 
 public static class TextExtenders
 {
-    public static bool IsRegex(this string that) => that.IsRegex(out _);
+    public static bool IsRegex(this string that)
+        => that.IsRegex(out _);
 
     public static bool IsRegex(this string that, [MaybeNullWhen(returnValue: false)] out Regex expression)
     {

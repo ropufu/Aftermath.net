@@ -108,7 +108,7 @@ public class DictionaryNoexceptConverter<TValue>
         if (_valueParser is not null)
             return _valueParser;
 
-        NullabilityAwareType valueType = typeToConvert.GetGenericArguments()[1];
+        NullabilityAwareType<TValue?> valueType = typeToConvert.GetGenericArguments()[1].Promote<TValue?>();
 
         if (!NoexceptJson.TryMakeParser(valueType, out Utf8JsonParser<TValue?>? valueParser))
             throw new NotSupportedException("Converter for T in Dictionary`[string, T] not found.");

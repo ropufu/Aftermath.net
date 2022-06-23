@@ -89,7 +89,7 @@ public sealed class ListNoexceptConverter<T>
         if (_valueParser is not null)
             return _valueParser;
 
-        NullabilityAwareType valueType = typeToConvert.GetGenericArguments()[0];
+        NullabilityAwareType<T?> valueType = typeToConvert.GetGenericArguments()[0].Promote<T?>();
 
         if (!NoexceptJson.TryMakeParser(valueType, out Utf8JsonParser<T?>? valueParser))
             throw new NotSupportedException("Converter for T in List`[T] not found.");

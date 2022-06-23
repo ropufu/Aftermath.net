@@ -12,8 +12,8 @@ public class NoexceptJsonTest
 
     static NoexceptJsonTest()
     {
-        NullabilityAwareType notNullType = NullabilityAwareType.MakeSimple<string>(NullabilityState.NotNull);
-        NullabilityAwareType maybeNullType = NullabilityAwareType.MakeSimple<string>(NullabilityState.Nullable);
+        NullabilityAwareType<string> notNullType = NullabilityAwareType.MakeSimple<string>(NullabilityState.NotNull);
+        NullabilityAwareType<string> maybeNullType = NullabilityAwareType.MakeSimple<string>(NullabilityState.Nullable);
 
         NoexceptJson.TryMakeParser(notNullType, out s_notNullParser!);
         NoexceptJson.TryMakeParser(maybeNullType, out s_maybeNullParser!);

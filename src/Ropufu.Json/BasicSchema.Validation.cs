@@ -10,6 +10,21 @@ public partial class BasicSchema<TSchema>
     [JsonPropertyName("type")]
     public SimpleType Type { get; private set; } = SimpleType.Missing;
 
+    [JsonIgnore]
+    public int TypeCount
+    {
+        get
+        {
+            int count = 0;
+
+            foreach (SimpleType x in Enum.GetValues<SimpleType>())
+                if ((this.Type & x) != SimpleType.Missing)
+                    ++count;
+
+            return count;
+        }
+    }
+
     [JsonInclude]
     [JsonPropertyName("const")]
     public JsonElement ConstantValue { get; private set; }
@@ -40,11 +55,11 @@ public partial class BasicSchema<TSchema>
 
     [JsonInclude]
     [JsonPropertyName("maxLength")]
-    public int? MaxLength { get; private set; }
+    public int? MaxStringLength { get; private set; }
 
     [JsonInclude]
     [JsonPropertyName("minLength")]
-    public int MinLength { get; private set; } = 0;
+    public int MinStringLength { get; private set; } = 0;
 
     [JsonInclude]
     [JsonPropertyName("pattern")]
@@ -52,23 +67,23 @@ public partial class BasicSchema<TSchema>
 
     [JsonInclude]
     [JsonPropertyName("maxItems")]
-    public int? MaxItems { get; private set; }
+    public int? MaxArrayItems { get; private set; }
 
     [JsonInclude]
     [JsonPropertyName("minItems")]
-    public int MinItems { get; private set; } = 0;
+    public int MinArrayItems { get; private set; } = 0;
 
     [JsonInclude]
     [JsonPropertyName("uniqueItems")]
-    public bool DoRequireDistinctItems { get; private set; } = false;
+    public bool DoRequireDistinctArrayItems { get; private set; } = false;
 
     [JsonInclude]
     [JsonPropertyName("maxContains")]
-    public int? ArrayMaxContains { get; private set; }
+    public int? ArrayMaxArrayContains { get; private set; }
 
     [JsonInclude]
     [JsonPropertyName("minContains")]
-    public int ArrayMinContains { get; private set; } = 1;
+    public int ArrayMinArrayContains { get; private set; } = 1;
 
     [JsonInclude]
     [JsonPropertyName("maxProperties")]
@@ -91,66 +106,88 @@ public partial class BasicSchema<TSchema>
         if (this.MultipleOf.HasValue)
         {
             if (!this.MultipleOf.Value.IsFinite())
-                this.LogError(Literals.ExpectedFinite, s_jsonPointers[nameof(this.MultipleOf)]);
+                this.Log(Literals.ExpectedFinite, MessageLevel.Error, s_jsonPointers[nameof(this.MultipleOf)]);
             else if (this.MultipleOf.Value <= 0)
-                this.LogError(Literals.ExpectedPositive, s_jsonPointers[nameof(this.MultipleOf)]);
+                this.Log(Literals.ExpectedPositive, MessageLevel.Error, s_jsonPointers[nameof(this.MultipleOf)]);
         } // if (...)
 
         this.ValidateLowerBound();
         this.ValidateUpperBound();
         this.ValidateInterval();
 
-        if (this.MaxLength.HasValue && this.MaxLength.Value < 0)
-            this.LogError(Literals.ExpectedNonNegative, s_jsonPointers[nameof(this.MaxLength)]);
+        if (this.MaxStringLength.HasValue && this.MaxStringLength.Value < 0)
+            this.Log(Literals.ExpectedNonNegative, MessageLevel.Error, s_jsonPointers[nameof(this.MaxStringLength)]);
 
-        if (this.MinLength < 0)
-            this.LogError(Literals.ExpectedNonNegative, s_jsonPointers[nameof(this.MinLength)]);
+        if (this.MinStringLength < 0)
+            this.Log(Literals.ExpectedNonNegative, MessageLevel.Error, s_jsonPointers[nameof(this.MinStringLength)]);
 
-        if (this.MaxLength.HasValue && this.MaxLength.Value < this.MinLength)
-            this.LogError("Maximum length cannot exceed minimum length.");
+        if (this.MaxStringLength.HasValue && this.MaxStringLength.Value < this.MinStringLength)
+            this.Log(
+                "Maximum length cannot exceed minimum length.",
+                MessageLevel.Error);
 
-        if (this.MaxItems.HasValue && this.MaxItems.Value < 0)
-            this.LogError(Literals.ExpectedNonNegative, s_jsonPointers[nameof(this.MaxItems)]);
+        if (this.MaxArrayItems.HasValue && this.MaxArrayItems.Value < 0)
+            this.Log(Literals.ExpectedNonNegative, MessageLevel.Error, s_jsonPointers[nameof(this.MaxArrayItems)]);
 
-        if (this.MinItems < 0)
-            this.LogError(Literals.ExpectedNonNegative, s_jsonPointers[nameof(this.MinItems)]);
+        if (this.MinArrayItems < 0)
+            this.Log(Literals.ExpectedNonNegative, MessageLevel.Error, s_jsonPointers[nameof(this.MinArrayItems)]);
 
-        if (this.MaxItems.HasValue && this.MaxItems.Value < this.MinItems)
-            this.LogError("Maximum number of items cannot exceed minimum number of items.");
+        if (this.MaxArrayItems.HasValue && this.MaxArrayItems.Value < this.MinArrayItems)
+            this.Log(
+                "Maximum number of items cannot exceed minimum number of items.",
+                MessageLevel.Error);
 
-        if (this.ArrayMaxContains.HasValue && this.ArrayMaxContains.Value < 0)
-            this.LogError(Literals.ExpectedNonNegative, s_jsonPointers[nameof(this.ArrayMaxContains)]);
+        if (this.ArrayMaxArrayContains.HasValue)
+        {
+            if (this.ArrayMaxArrayContains.Value < 0)
+                this.Log(Literals.ExpectedNonNegative, MessageLevel.Error, s_jsonPointers[nameof(this.ArrayMaxArrayContains)]);
 
-        if (this.ArrayMinContains < 0)
-            this.LogError(Literals.ExpectedNonNegative, s_jsonPointers[nameof(this.ArrayMinContains)]);
+            if (this.ArrayContainsSchema is null)
+                this.Log(
+                    "Maximum number of \"contains\" will be ignored: \"contains\" schema is not present.",
+                    MessageLevel.Warning);
+        } // if (...)
 
-        if (this.ArrayMaxContains.HasValue && this.ArrayMaxContains.Value < this.ArrayMinContains)
-            this.LogError("Maximum number of contains cannot exceed minimum number of contains.");
+        if (this.ArrayMinArrayContains < 0)
+            this.Log(Literals.ExpectedNonNegative, MessageLevel.Error, s_jsonPointers[nameof(this.ArrayMinArrayContains)]);
+
+        // ArrayMinArrayContains defaults to 1.
+        if (this.ArrayMinArrayContains > 1 && this.ArrayContainsSchema is null)
+            this.Log(
+                "Minimum number of \"contains\" will be ignored: \"contains\" schema is not present.",
+                MessageLevel.Warning);
+
+        if (this.ArrayMaxArrayContains.HasValue && this.ArrayMaxArrayContains.Value < this.ArrayMinArrayContains)
+            this.Log(
+                "Maximum number of contains cannot exceed minimum number of contains.",
+                MessageLevel.Error);
 
         if (this.MaxProperties.HasValue && this.MaxProperties.Value < 0)
-            this.LogError(Literals.ExpectedNonNegative, s_jsonPointers[nameof(this.MaxProperties)]);
+            this.Log(Literals.ExpectedNonNegative, MessageLevel.Error, s_jsonPointers[nameof(this.MaxProperties)]);
 
         if (this.MinProperties < 0)
-            this.LogError(Literals.ExpectedNonNegative, s_jsonPointers[nameof(this.MinProperties)]);
+            this.Log(Literals.ExpectedNonNegative, MessageLevel.Error, s_jsonPointers[nameof(this.MinProperties)]);
 
         if (this.MaxProperties.HasValue && this.MaxProperties.Value < this.MinProperties)
-            this.LogError("Maximum number of properties cannot exceed minimum number of properties.");
+            this.Log(
+                "Maximum number of properties cannot exceed minimum number of properties.",
+                MessageLevel.Error);
 
         if (!this.RequiredPropertyNames.IsDistinct())
-            this.LogError(Literals.ExpectedDistinctItems, s_jsonPointers[nameof(this.RequiredPropertyNames)]);
+            this.Log(Literals.ExpectedDistinctItems, MessageLevel.Error, s_jsonPointers[nameof(this.RequiredPropertyNames)]);
 
         foreach (KeyValuePair<string, ImmutableList<string>> x in this.PropertyDependentRequiredPropertyNames)
             if (!x.Value.IsDistinct())
-                this.LogError(Literals.ExpectedDistinctItems, s_jsonPointers[nameof(this.PropertyDependentRequiredPropertyNames)].Append(x.Key));
+                this.Log(Literals.ExpectedDistinctItems, MessageLevel.Error, s_jsonPointers[nameof(this.PropertyDependentRequiredPropertyNames)] + new JsonPointer(x.Key));
     }
 
     private void ValidateLowerBound()
     {
         if (!this.Minimum.IsFiniteOrNull())
-            this.LogError(Literals.ExpectedFinite, s_jsonPointers[nameof(this.Minimum)]);
+            this.Log(Literals.ExpectedFinite, MessageLevel.Error, s_jsonPointers[nameof(this.Minimum)]);
 
         if (!this.ExclusiveMinimum.IsFiniteOrNull())
-            this.LogError(Literals.ExpectedFinite, s_jsonPointers[nameof(this.ExclusiveMinimum)]);
+            this.Log(Literals.ExpectedFinite, MessageLevel.Error, s_jsonPointers[nameof(this.ExclusiveMinimum)]);
 
         if (!this.Minimum.HasValue)
             return;
@@ -159,18 +196,22 @@ public partial class BasicSchema<TSchema>
             return;
 
         if (this.Minimum.Value > this.ExclusiveMinimum.Value)
-            this.LogWarning("Exclusive minimum will be ignored as minimum is more restrictive.");
+            this.Log(
+                "Exclusive minimum will be ignored as minimum is more restrictive.",
+                MessageLevel.Warning);
         else
-            this.LogWarning("Minimum will be ignored as exclusive minimum is more restrictive.");
+            this.Log(
+                "Minimum will be ignored as exclusive minimum is more restrictive.",
+                MessageLevel.Warning);
     }
 
     private void ValidateUpperBound()
     {
         if (!this.Maximum.IsFiniteOrNull())
-            this.LogError(Literals.ExpectedFinite, s_jsonPointers[nameof(this.Maximum)]);
+            this.Log(Literals.ExpectedFinite, MessageLevel.Error, s_jsonPointers[nameof(this.Maximum)]);
 
         if (!this.ExclusiveMaximum.IsFiniteOrNull())
-            this.LogError(Literals.ExpectedFinite, s_jsonPointers[nameof(this.ExclusiveMaximum)]);
+            this.Log(Literals.ExpectedFinite, MessageLevel.Error, s_jsonPointers[nameof(this.ExclusiveMaximum)]);
 
         if (!this.Maximum.HasValue)
             return;
@@ -179,9 +220,13 @@ public partial class BasicSchema<TSchema>
             return;
 
         if (this.Maximum.Value < this.ExclusiveMaximum.Value)
-            this.LogWarning("Exclusive maximum will be ignored as maximum is more restrictive.");
+            this.Log(
+                "Exclusive maximum will be ignored as maximum is more restrictive.",
+                MessageLevel.Warning);
         else
-            this.LogWarning("Maximum will be ignored as exclusive maximum is more restrictive.");
+            this.Log(
+                "Maximum will be ignored as exclusive maximum is more restrictive.",
+                MessageLevel.Warning);
     }
 
     private void ValidateInterval()
@@ -197,13 +242,17 @@ public partial class BasicSchema<TSchema>
 
         if (lowerBound > upperBound)
         {
-            this.LogError("Lower bound cannot exceed upper bound.");
+            this.Log(
+                "Lower bound cannot exceed upper bound.",
+                MessageLevel.Error);
             return;
         } // if (...)
 
         // Now that we know that both are equal...
         if (isLowerExclusive || isUpperExclusive)
-            this.LogError("Bounds result in no acceptable values.");
+            this.Log(
+                "Bounds result in no acceptable values.",
+                MessageLevel.Error);
     }
 
     public bool TryGetLowerBound(out double bound, out bool isExclusivee)
@@ -333,10 +382,10 @@ public partial class BasicSchema<TSchema>
 
     private bool TryValidate(string value)
     {
-        if (value.Length < this.MinLength)
+        if (value.Length < this.MinStringLength)
             return false;
 
-        if (this.MaxLength.HasValue && value.Length > this.MaxLength.Value)
+        if (this.MaxStringLength.HasValue && value.Length > this.MaxStringLength.Value)
             return false;
 
         if (!this.Pattern.IsMatch(value))
@@ -357,13 +406,13 @@ public partial class BasicSchema<TSchema>
 
         int n = list.Count;
 
-        if (n < this.MinItems)
+        if (n < this.MinArrayItems)
             return false;
 
-        if (this.MaxItems.HasValue && n > this.MaxItems.Value)
+        if (this.MaxArrayItems.HasValue && n > this.MaxArrayItems.Value)
             return false;
 
-        if (this.DoRequireDistinctItems)
+        if (this.DoRequireDistinctArrayItems)
         {
             for (int i = 0; i < n; ++i)
             {
@@ -374,30 +423,60 @@ public partial class BasicSchema<TSchema>
             } // for (...)
         } // if (...)
 
+        // Items successfully processed by a schema are considered "evaluated".
+        bool[] hasBeenEvaluated = new bool[n];
+
         int offset = 0;
         foreach (TSchema schema in this.ArrayPrefixItemSchemas)
         {
             if (!schema.IsMatch(list[offset]))
                 return false;
+
+            hasBeenEvaluated[offset] = true;
             ++offset;
         } // foreach (...)
 
-        for (int i = offset; i < n; ++i)
-            if (!this.ArrayItemsSchema.IsMatch(list[i]))
-                return false;
+        if (this.ArrayItemsSchema is not null)
+        {
+            for (int i = offset; i < n; ++i)
+            {
+                if (!this.ArrayItemsSchema.IsMatch(list[i]))
+                    return false;
+
+                hasBeenEvaluated[i] = true;
+            } // foreach (...)
+        } // if (...)
 
         if (this.ArrayContainsSchema is not null)
         {
             int countContains = 0;
+
             for (int i = 0; i < n; ++i)
+            {
                 if (this.ArrayContainsSchema.IsMatch(list[i]))
+                {
+                    hasBeenEvaluated[i] = true;
                     ++countContains;
+                } // if (...)
+            } // for (...)
 
-            if (countContains < this.ArrayMinContains)
+            if (countContains < this.ArrayMinArrayContains)
                 return false;
 
-            if (this.ArrayMaxContains.HasValue && countContains > this.ArrayMaxContains.Value)
+            if (this.ArrayMaxArrayContains.HasValue && countContains > this.ArrayMaxArrayContains.Value)
                 return false;
+        } // if (...)
+
+        if (this.UnevaluatedArrayItems is not null)
+        {
+            for (int i = 0; i < n; ++i)
+            {
+                if (hasBeenEvaluated[i])
+                    continue;
+
+                if (!this.UnevaluatedArrayItems.IsMatch(list[i]))
+                    return false;
+            } // for (...)
         } // if (...)
 
         return true;
