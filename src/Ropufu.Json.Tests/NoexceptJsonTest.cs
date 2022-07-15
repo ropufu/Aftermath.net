@@ -50,4 +50,22 @@ public class NoexceptJsonTest
         s_maybeNullParser(ref reader, out value);
         Assert.Equal("\\", value);
     }
+
+    [Fact]
+    public void MalformedArray()
+    {
+        byte[] utf8Bytes = Encoding.UTF8.GetBytes(@"[""first"", 2, ""last""]");
+        Utf8JsonReader reader = new(utf8Bytes);
+        reader.Read();
+
+        NullabilityAwareType<string> stringType = NullabilityAwareType.MakeSimple<string>(NullabilityState.NotNull);
+        NullabilityAwareType<string[]> arrayType = stringType.MakeArrayType(NullabilityState.NotNull);
+
+
+        Assert.True(NoexceptJson.TryMakeParser(arrayType, out Utf8JsonParser<string[]>? arrayParser));
+
+        Assert.False(arrayParser!(ref reader, out _));
+
+        Assert.Equal(JsonTokenType.EndArray, reader.TokenType);
+    }
 }

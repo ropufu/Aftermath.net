@@ -132,4 +132,16 @@ public static class JsonExtenders
                 return false;
         }
     }
+
+    public static void FastForwardToEndArray(this ref Utf8JsonReader json)
+        => json.FastForwardTo(JsonTokenType.EndArray);
+
+    public static void FastForwardToEndObject(this ref Utf8JsonReader json)
+        => json.FastForwardTo(JsonTokenType.EndObject);
+
+    private static void FastForwardTo(this ref Utf8JsonReader json, JsonTokenType endToken)
+    {
+        while (json.Read() && json.TokenType != endToken)
+            json.Skip();
+    }
 }

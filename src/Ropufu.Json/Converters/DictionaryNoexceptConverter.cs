@@ -48,7 +48,13 @@ public class DictionaryNoexceptConverter<TValue>
             while (json.Read() && json.TokenType != JsonTokenType.EndObject)
             {
                 if (json.TokenType != JsonTokenType.PropertyName)
+                {
+                    // Object malformed: jump to the matching '}'.
+                    json.FastForwardToEndObject();
+
+                    value = null;
                     return false;
+                } // if (...)
 
                 string? propertyName = json.GetString();
 
@@ -57,9 +63,11 @@ public class DictionaryNoexceptConverter<TValue>
 
                 // Move to property value.
                 if (!json.Read())
+                {
+                    value = null;
                     return false;
+                } // if (...)
 
-                // Skip unrecognized properties.
                 if (propertyName is null)
                 {
                     json.Skip();
@@ -82,7 +90,11 @@ public class DictionaryNoexceptConverter<TValue>
                 } // if (...)
 
                 value.Add(propertyName, propertyValue);
-            } // for (...)
+            } // while (...)
+
+            // Guard against malformed JSON.
+            if (json.TokenType != JsonTokenType.EndObject)
+                isGood = false;
 
             return isGood;
         }

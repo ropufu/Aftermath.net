@@ -41,14 +41,25 @@ public sealed class ListNoexceptConverter<T>
         {
             value = new();
 
+            bool isGood = true;
+
             while (json.Read() && json.TokenType != JsonTokenType.EndArray)
             {
-                if (!_valueParser(ref json, out T? x))
-                    return false;
-                value.Add(x);
+                if (_valueParser(ref json, out T? x))
+                    value.Add(x);
+                else
+                {
+                    isGood = false;
+                    value.Add(default);
+                    json.Skip();
+                } // else
             } // for (...)
 
-            return true;
+            // Guard against malformed JSON.
+            if (json.TokenType != JsonTokenType.EndArray)
+                isGood = false;
+
+            return isGood;
         }
 
         private bool TryGetSingleton(ref Utf8JsonReader json, out List<T?>? value)

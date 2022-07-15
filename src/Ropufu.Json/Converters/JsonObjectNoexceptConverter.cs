@@ -166,7 +166,13 @@ public class JsonObjectNoexceptConverter<T>
         while (json.Read() && json.TokenType != JsonTokenType.EndObject)
         {
             if (json.TokenType != JsonTokenType.PropertyName)
+            {
+                // Object malformed: jump to the matching '}'.
+                json.FastForwardToEndObject();
+
+                value = null;
                 return false;
+            } // if (...)
 
             string? propertyName = json.GetString();
 
@@ -175,7 +181,10 @@ public class JsonObjectNoexceptConverter<T>
 
             // Move to property value.
             if (!json.Read())
+            {
+                value = null;
                 return false;
+            } // if (...)
 
             // Skip unrecognized properties.
             if (propertyName is null || !s_activators.TryGetValue(propertyName, out PropertyActivator? activator))
