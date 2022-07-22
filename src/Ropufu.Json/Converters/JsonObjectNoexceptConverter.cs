@@ -116,10 +116,10 @@ public class JsonObjectNoexceptConverter<T>
                 if (specializedConverterAttribute is not null && specializedConverterAttribute.CanConvert(propertyType.Type))
                     utf8JsonParser = specializedConverterAttribute.MakeUtf8JsonParser(propertyType);
                 else if (!NoexceptJson.TryMakeParser(propertyType, out utf8JsonParser))
-                    throw new NotSupportedException("Type not recognized. Custom noexcept JSON converter necessary.");
+                    throw new NotSupportedException($"Type '{propertyType.Type.FullName}' not recognized. Custom noexcept JSON converter necessary.");
 
                 if (utf8JsonParser is null)
-                    throw new NotSupportedException("Custom noexcept JSON converter malformed.");
+                    throw new NotSupportedException($"Custom noexcept JSON converter for '{propertyType.Type.FullName}' is malformed.");
 
                 PropertyActivator activator = JsonObjectNoexceptConverter<T>.MakeActivator(x, setterInfo, utf8JsonParser);
 

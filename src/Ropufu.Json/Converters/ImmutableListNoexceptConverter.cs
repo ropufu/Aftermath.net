@@ -31,10 +31,20 @@ public sealed class ImmutableListNoexceptConverter<T>
 
     public bool DoAllowSingleton { get; set; }
 
-    public ImmutableListNoexceptConverter(bool doAllowSingleton = false)
+    public ImmutableListNoexceptConverter()
+        : this(false)
+    {
+    }
+
+    public ImmutableListNoexceptConverter(bool doAllowSingleton)
         => this.DoAllowSingleton = doAllowSingleton;
 
-    public ImmutableListNoexceptConverter(Utf8JsonParser<T?> valueParser, bool doAllowSingleton = false)
+    public ImmutableListNoexceptConverter(Utf8JsonParser<T?> valueParser)
+        : this(valueParser, false)
+    {
+    }
+
+    public ImmutableListNoexceptConverter(Utf8JsonParser<T?> valueParser, bool doAllowSingleton)
     {
         ArgumentNullException.ThrowIfNull(valueParser);
 

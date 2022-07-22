@@ -135,6 +135,16 @@ public static partial class NoexceptJson
                 typeof(NullableNoexceptConverter<>),
                 out parser);
         } // else if (...)
+        // Uncached lists.
+        else if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
+        {
+            NullabilityAwareType valueType = typeToParse.GetGenericArguments()[0];
+            return NoexceptJson.TryMakeParserViaExtensionConverter(
+                typeToParse,
+                valueType,
+                typeof(ListNoexceptConverter<>),
+                out parser);
+        } // else if (...)
         // Uncached arrays.
         else if (type.IsArray)
         {

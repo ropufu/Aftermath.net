@@ -81,10 +81,20 @@ public sealed class ListNoexceptConverter<T>
 
     public bool DoAllowSingleton { get; set; }
 
-    public ListNoexceptConverter(bool doAllowSingleton = false)
+    public ListNoexceptConverter()
+        : this(false)
+    {
+    }
+
+    public ListNoexceptConverter(bool doAllowSingleton)
         => this.DoAllowSingleton = doAllowSingleton;
 
-    public ListNoexceptConverter(Utf8JsonParser<T?> valueParser, bool doAllowSingleton = false)
+    public ListNoexceptConverter(Utf8JsonParser<T?> valueParser)
+        : this(valueParser, false)
+    {
+    }
+
+    public ListNoexceptConverter(Utf8JsonParser<T?> valueParser, bool doAllowSingleton)
     {
         ArgumentNullException.ThrowIfNull(valueParser);
 

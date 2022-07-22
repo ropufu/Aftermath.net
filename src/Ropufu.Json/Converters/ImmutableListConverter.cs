@@ -16,10 +16,13 @@ public class ImmutableListConverter<T>
         s_noexceptParser = noexceptConverter.MakeParser(typeToConvert);
     }
 
-    public ImmutableListConverter(bool doAllowSingleton = false)
+    public ImmutableListConverter()
+        : this(false)
     {
-        this.DoAllowSingleton = doAllowSingleton;
     }
+
+    public ImmutableListConverter(bool doAllowSingleton)
+        => this.DoAllowSingleton = doAllowSingleton;
 
     public bool DoAllowSingleton { get; set; }
 

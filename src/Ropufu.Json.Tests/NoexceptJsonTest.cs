@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -52,7 +53,7 @@ public class NoexceptJsonTest
     }
 
     [Fact]
-    public void MalformedArray()
+    public void MalformedArraySkipsToEndArray()
     {
         byte[] utf8Bytes = Encoding.UTF8.GetBytes(@"[""first"", 2, ""last""]");
         Utf8JsonReader reader = new(utf8Bytes);
@@ -61,11 +62,27 @@ public class NoexceptJsonTest
         NullabilityAwareType<string> stringType = NullabilityAwareType.MakeSimple<string>(NullabilityState.NotNull);
         NullabilityAwareType<string[]> arrayType = stringType.MakeArrayType(NullabilityState.NotNull);
 
-
         Assert.True(NoexceptJson.TryMakeParser(arrayType, out Utf8JsonParser<string[]>? arrayParser));
 
         Assert.False(arrayParser!(ref reader, out _));
 
         Assert.Equal(JsonTokenType.EndArray, reader.TokenType);
+    }
+
+    [Fact]
+    public void ListArrayOfInt32()
+    {
+        byte[] utf8Bytes = Encoding.UTF8.GetBytes(@"[[1, 2, 3], [4, 5]]");
+        Utf8JsonReader reader = new(utf8Bytes);
+        reader.Read();
+
+        NullabilityAwareType<int> intType = NullabilityAwareType.MakeSimple<int>();
+        NullabilityAwareType<int[]> arrayType = intType.MakeArrayType(NullabilityState.NotNull);
+        NullabilityAwareType<List<int[]>> listType = NullabilityAwareType.MakeGenericType<List<int[]>>(NullabilityState.NotNull, arrayType);
+
+        Assert.True(NoexceptJson.TryMakeParser(arrayType, out Utf8JsonParser<int[]>? arrayParser));
+        Assert.True(NoexceptJson.TryMakeParser(listType, out Utf8JsonParser<List<int[]>>? listParser));
+
+        Assert.True(listParser!(ref reader, out _));
     }
 }

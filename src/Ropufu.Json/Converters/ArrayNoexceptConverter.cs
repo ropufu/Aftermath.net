@@ -31,10 +31,20 @@ public sealed class ArrayNoexceptConverter<T>
 
     public bool DoAllowSingleton { get; set; }
 
-    public ArrayNoexceptConverter(bool doAllowSingleton = false)
+    public ArrayNoexceptConverter()
+        : this(false)
+    {
+    }
+
+    public ArrayNoexceptConverter(bool doAllowSingleton)
         => this.DoAllowSingleton = doAllowSingleton;
 
-    public ArrayNoexceptConverter(Utf8JsonParser<T?> valueParser, bool doAllowSingleton = false)
+    public ArrayNoexceptConverter(Utf8JsonParser<T?> valueParser)
+        : this(valueParser, false)
+    {
+    }
+
+    public ArrayNoexceptConverter(Utf8JsonParser<T?> valueParser, bool doAllowSingleton)
     {
         ArgumentNullException.ThrowIfNull(valueParser);
 
